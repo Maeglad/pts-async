@@ -11,7 +11,7 @@ class Promise():
     """
 
     """
-    states
+    states - did not work for some reason replaced with strings
     """
     PENDING = 0;
     FULFILLED = 1;
@@ -21,16 +21,38 @@ class Promise():
     def __init__(self, resolver):
         self.state = 'PENDING';
         self.value = None;
+        self.values = [];
         self.callbacks = [];
         self.errorcallbacks = [];
+        self.count = 0;
         if(resolver != None):
             resolver(self.resolve, self.reject);
+
+    def setCount(self, val=0):
+        self.count = val;
+
+    def setList(self, list_of_promises):
+        self.list_of_promises = list_of_promises;
 
     def fulfill(self, value):
         if(self.state != 'PENDING'):
             return;
+        if(self.count != 0):
+            self.values.append(value);
+            if(self.count == len(self.values)):
+                self.value = self.values;
+            else:
+                return;
         self.state = 'FULFILLED';
-        self.value = value;
+        if(self.count == 0):
+            self.value = value;
+        else: ## this aproach is not cleanest but i cant be picky right now
+
+            values = [];
+            for i in range(len(self.list_of_promises)):
+                values.append(self.list_of_promises[i].value);
+            self.value = values;
+
         callbacks = self.callbacks;
         self.callbacks = None;
         for call in callbacks:
@@ -117,13 +139,20 @@ class Promise():
         #TODO
         pass
 
-    def all(self, list_of_promises):
+    def all(list_of_promises):
         """
         Promise.all(list_of_promises) returns a new promise which fulfills when all the promises from
         the given list fulfill. Result is a list cotaining values of individual promises in
         list_of_promises. Similar to bluebird's Promise.all
         """
-        pass;
+
+        p = Promise(None);
+        p.setCount(len(list_of_promises));
+        p.setList(list_of_promises);
+        for pr in list_of_promises:
+            pr.then(p.resolve);
+
+        return p;
 
 
     def foreach(iterable, get_promise):
@@ -219,8 +248,8 @@ def test5():
     fulfills after 5 seconds)
     """
 
-    list_of_promises = [Promise.delayed(5-i, 2*i) for i in range(5)]
-    Promise.all(list_of_promises).then(my_print)
+    list_of_promises = [Promise.delayed(6-i, 2*i) for i in range(6)];
+    Promise.all(list_of_promises).then(my_print);
 
 def test6():
     """
@@ -244,7 +273,7 @@ e.start()
 #test2()
 #test3()
 #test4()
-#test5()
+test5()
 #test6()
 
 
