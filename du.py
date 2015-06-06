@@ -1,6 +1,6 @@
-from eventlioop import EventLoop, my_print, printer
+from eventloop import EventLoop, my_print, printer
 from functools import partial
-
+import pdb
 # https://promisesaplus.com/
 
 
@@ -19,26 +19,86 @@ class Promise():
 
 
     def __init__(self, resolver):
-        self.state = PENDING;
+        self.state = 'PENDING';
         self.value = None;
         self.callbacks = [];
-        self.errorCalls = [];
-        self.resolver = resolver;
+        self.errorcallbacks = [];
+        if(resolver != None):
+            resolver(self.resolve, self.reject);
 
     def fulfill(self, value):
-        self.state = FULFILLED;
+        if(self.state != 'PENDING'):
+            return;
+        self.state = 'FULFILLED';
         self.value = value;
+        callbacks = self.callbacks;
+        self.callbacks = None;
+        for call in callbacks:
+            call(self.value);
 
     def reject(self, value):
-        self.state = REJECTED;
-        self.value = value;
+        if(self.state != 'PENDING'):
+            return;
+        if(not isinstance(value, Exception)):
+            return;
 
-    def resolve(self, resolver):
-        if()
+        self.state = 'REJECTED';
+        self.value = value;
+        errorcalls = self.errorcallbacks;
+        self.errorcallbacks = None;
+        for call in errorcalls:
+            call(self.value);
+    """
+        [RESOLVE](promise, x)
+            x is value -> fulfill with x
+            x is promise -> adopt promise state
+                -> pending -> wait and adopt
+                -> finished -> finish
+            x is promise-like - has then method resp. done
+                -> "promisify(x)" and adopt state
+            x is function -> not promise-like
+                -> fulfill promise with x
+    """
+    def resolve(self, x):
+        if(self.state == 'FULFILLED'): # maybe some kind of error would be better
+            return;
+
+        if(isinstance(x, Promise)):
+            x.done(self.resolve, self.reject);
+        else:
+            self.fulfill(x);
+
+    def done(self, onFulfill, onReject):
+        if(self.state == 'PENDING'):
+            if(onFulfill is not None):
+                self.callbacks.append(onFulfill);
+            if(onReject is not None):
+                self.errorcallbacks.append(onReject);
+            return;
+
+        if(self.state == 'FULFILLED'):
+            e.run(onFulfill(self.value));
+
+        if(self.state == REJECTED):
+            e.run(onReject(self.value));
+
+
+
 
     def then(self, then_fn):
-        #TODO
-        pass
+
+        p = Promise(None);
+
+        def successCall(value):
+
+            if( hasattr(then_fn, '__call__') ):
+                e.run(lambda: p.resolve(then_fn(self.value)));
+
+            else:
+                e.run(lambda: p.resolve(self.value));
+
+        self.done(successCall, None); # errorcall is missing so none
+        return p;
 
     def delayed(time, val = None):
         """
@@ -57,14 +117,14 @@ class Promise():
         #TODO
         pass
 
-    def all(list_of_promises):
+    def all(self, list_of_promises):
         """
         Promise.all(list_of_promises) returns a new promise which fulfills when all the promises from
         the given list fulfill. Result is a list cotaining values of individual promises in
         list_of_promises. Similar to bluebird's Promise.all
         """
-        #TODO
-        pass
+        pass;
+
 
     def foreach(iterable, get_promise):
         """
@@ -123,7 +183,7 @@ def test2():
     .then(my_print)
 
     Promise.delayed(1,0) \
-    .then(lambda x: Promise.delayed(0, x+1)) \
+    .then(lambda x: Promise.delayed(1, x+1)) \
     .then(my_print)
 
 def test3():
@@ -178,8 +238,8 @@ def test6():
 e = EventLoop()
 e.start()
 
-p = Promise(print_inc_wait())
-
+#p = Promise(print_inc_wait());
+#pdb.set_trace();
 #test1()
 #test2()
 #test3()

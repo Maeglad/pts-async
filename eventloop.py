@@ -94,7 +94,7 @@ if __name__ == '__main__':
             e.wait(1, cb4)
 
         def cb4():
-            print('Callback-Hölle :(')
+            print('Callback-Holle :(')
 
         e.wait(1, cb1)
 
