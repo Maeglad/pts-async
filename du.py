@@ -28,7 +28,7 @@ class Promise():
         self.specialCall = None;
         self.count = 0;
         if(resolver != None):
-            resolver(self.resolve, self.reject);
+            e.run(lambda :resolver(self.resolve, self.reject));
 
     def setCount(self, val=0):
         self.count = val;
@@ -82,7 +82,7 @@ class Promise():
         errorcalls = self.errorcallbacks;
         self.errorcallbacks = None;
         for call in errorcalls:
-            call(self.value);
+            e.run(call(self.value));
     """
         [RESOLVE](promise, x)
             x is value -> fulfill with x
@@ -151,7 +151,16 @@ class Promise():
         creates promise which fulfills with the content of a given file
         """
         #TODO
-        pass
+        def resolver(resolve, reject):
+            try:
+                f = open(filename, 'r');
+                buff = f.read();
+                f.close();
+                resolve(buff);
+            except Exception as e:
+                reject(e);
+
+
 
     def all(list_of_promises):
         """
