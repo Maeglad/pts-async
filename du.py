@@ -1,6 +1,7 @@
 from eventloop import EventLoop, my_print, printer
 from functools import partial
 import pdb
+import queue
 # https://promisesaplus.com/
 
 
@@ -24,15 +25,22 @@ class Promise():
         self.values = [];
         self.callbacks = [];
         self.errorcallbacks = [];
+        self.specialCall = None;
         self.count = 0;
         if(resolver != None):
-            resolver(self.resolve, self.reject);
+            e.run(lambda :resolver(self.resolve, self.reject));
 
     def setCount(self, val=0):
         self.count = val;
 
     def setList(self, list_of_promises):
         self.list_of_promises = list_of_promises;
+
+    def setValueCall(value, call):# will call specialCall when fulfilled with value instead of self.value
+        if(self.state == 'PENDING'):
+           self.override = value;
+           self.specialCall = call;
+
 
     def fulfill(self, value):
         if(self.state != 'PENDING'):
@@ -43,6 +51,7 @@ class Promise():
                 self.value = self.values;
             else:
                 return;
+#        print('fulfilled');
         self.state = 'FULFILLED';
         if(self.count == 0):
             self.value = value;
@@ -55,8 +64,12 @@ class Promise():
 
         callbacks = self.callbacks;
         self.callbacks = None;
+ #       print(len(callbacks));
         for call in callbacks:
-            call(self.value);
+  #          print('callbacks salled');
+            e.run(lambda: call(self.value));
+
+
 
     def reject(self, value):
         if(self.state != 'PENDING'):
@@ -69,7 +82,7 @@ class Promise():
         errorcalls = self.errorcallbacks;
         self.errorcallbacks = None;
         for call in errorcalls:
-            call(self.value);
+            e.run(call(self.value));
     """
         [RESOLVE](promise, x)
             x is value -> fulfill with x
@@ -84,16 +97,18 @@ class Promise():
     def resolve(self, x):
         if(self.state == 'FULFILLED'): # maybe some kind of error would be better
             return;
-
         if(isinstance(x, Promise)):
             x.done(self.resolve, self.reject);
         else:
             self.fulfill(x);
 
     def done(self, onFulfill, onReject):
+        #if(onFulfill is None):
+   #         print('None');
         if(self.state == 'PENDING'):
             if(onFulfill is not None):
                 self.callbacks.append(onFulfill);
+  #              print(self.callbacks);
             if(onReject is not None):
                 self.errorcallbacks.append(onReject);
             return;
@@ -110,7 +125,6 @@ class Promise():
     def then(self, then_fn):
 
         p = Promise(None);
-
         def successCall(value):
 
             if( hasattr(then_fn, '__call__') ):
@@ -137,7 +151,16 @@ class Promise():
         creates promise which fulfills with the content of a given file
         """
         #TODO
-        pass
+        def resolver(resolve, reject):
+            try:
+                f = open(filename, 'r');
+                buff = f.read();
+                f.close();
+                resolve(buff);
+            except Exception as e:
+                reject(e);
+
+
 
     def all(list_of_promises):
         """
@@ -167,17 +190,27 @@ class Promise():
             wait for p to fulfill, then continue
 
         """
-
-        # you may find helpful this piece of code
-        def _foreach(iterator):
+        # can change to list of promises and agregate through all if return is wanted as list
+        x = iter(iterable);
+        val = next(x);
+        def resolver(resolve, reject):
+            e.run(lambda: resolve(get_promise(val)));
+        p = Promise(resolver);
+        def _foreach(iterator,p):
             try:
-                elem = next(iterator)
+                elem = next(iterator);
+                #print(elem);
+                p = p.then(lambda v: get_promise(elem));
+                _foreach(iterator,p);
             except StopIteration:
                 return
-            #TODO
 
-        _foreach(iter(iterable))
-        pass
+        #promise_list = [];
+
+        _foreach(x,p);
+        # you may find helpful this piece of code
+
+        return p;
 
 
 def print_inc_wait(res):
@@ -266,12 +299,11 @@ def test6():
 
 e = EventLoop()
 e.start()
-
 #p = Promise(print_inc_wait());
 #pdb.set_trace();
-test1()
+#test1()
 #test2()
 #test3()
 #test4()
 #test5()
-#test6()
+test6()
