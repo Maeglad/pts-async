@@ -160,6 +160,7 @@ class Promise():
             except Exception as e:
                 reject(e);
 
+        return Promise(resolver);
 
 
     def all(list_of_promises):
